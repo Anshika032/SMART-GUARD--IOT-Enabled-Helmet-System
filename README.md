@@ -16,4 +16,3 @@ Smart Guard is an IoT-based smart helmet safety system designed to enhance rider
 * Arduino IDE (Sensor programming and hardware integration)
 * Python Flask (Backend API)
 * JavaScript / HTML / CSS (Dashboard frontend)
-* Twilio API (Emergency SMS/Call alerts)
