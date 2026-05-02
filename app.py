@@ -67,15 +67,10 @@ def send_twilio_alert():
     global sms_count, call_count
 
     account_sid = os.getenv("TWILIO_ACCOUNT_SID") 
-    auth_token = os.getenv("TWILIO_AUTH_TOKEN")  
-    from_number = os.getenv("TWILIO_FROM_NUMBER") 
-    to_number = os.getenv("TWILIO_TO_NUMBER")
 
     missing = [
         name
         for name, value in {
-            "TWILIO_ACCOUNT_SID": "XYZ",
-            "TWILIO_AUTH_TOKEN": "XYZ",
             "TWILIO_FROM_NUMBER": "XYZ",
             "TWILIO_TO_NUMBER": "XYZ",
         }.items()
