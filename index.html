@@ -1,0 +1,606 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SafeRide - Smart Helmet Dashboard</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg"/>
+<link rel="shortcut icon" href="favicon.svg"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#08080f;--surface:#0f0f1a;--surface2:#161625;--surface3:#1c1c2e;
+  --cyan:#00d4ff;--cyan2:#00a8cc;--green:#00e676;--red:#ff3b3b;--yellow:#ffaa00;--purple:#7c4dff;
+  --text:#e8e8f4;--muted:#4a4a6a;--border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospace;overflow:hidden}
+
+/* LOGIN PAGE */
+#login-page{
+  position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+  background:var(--bg);z-index:100;
+}
+#login-page::before{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse 60% 50% at 50% 50%,rgba(0,212,255,0.06) 0%,transparent 70%);
+  pointer-events:none;
+}
+.grid-bg{
+  position:absolute;inset:0;
+  background-image:linear-gradient(rgba(0,212,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,0.03) 1px,transparent 1px);
+  background-size:40px 40px;
+}
+.login-card{
+  position:relative;width:420px;
+  background:rgba(15,15,26,0.9);
+  border:1px solid var(--border2);
+  border-radius:24px;padding:44px;
+  backdrop-filter:blur(30px);
+  animation:cardIn .6s cubic-bezier(.16,1,.3,1) forwards;
+}
+@keyframes cardIn{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+.login-logo{text-align:center;margin-bottom:32px;}
+.logo-icon{
+  width:64px;height:64px;border-radius:50%;
+  background:rgba(0,212,255,0.1);border:1px solid rgba(0,212,255,0.3);
+  display:inline-flex;align-items:center;justify-content:center;
+  font-size:28px;margin-bottom:14px;
+  box-shadow:0 0 30px rgba(0,212,255,0.15);
+}
+.logo-title{font-family:'Orbitron',monospace;font-size:22px;font-weight:700;color:var(--cyan);letter-spacing:3px;}
+.logo-sub{font-size:10px;color:var(--muted);letter-spacing:2px;margin-top:6px;text-transform:uppercase;}
+.tab-row{display:flex;background:var(--surface2);border-radius:10px;padding:4px;margin-bottom:28px;gap:4px;}
+.tab{flex:1;padding:9px;text-align:center;border-radius:7px;cursor:pointer;font-size:11px;letter-spacing:1px;color:var(--muted);transition:all .2s;}
+.tab.active{background:var(--surface3);color:var(--cyan);border:1px solid rgba(0,212,255,0.2);}
+.field{margin-bottom:14px;}
+.field label{display:block;font-size:9px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:7px;}
+.field input{
+  width:100%;padding:13px 16px;
+  background:rgba(255,255,255,0.04);
+  border:1px solid var(--border2);border-radius:10px;
+  color:var(--text);font-family:'JetBrains Mono',monospace;font-size:13px;
+  outline:none;transition:all .2s;
+}
+.field input:focus{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(0,212,255,0.12);background:rgba(0,212,255,0.04);}
+.field input::placeholder{color:var(--muted);}
+.remember{display:flex;align-items:center;gap:8px;margin-bottom:22px;font-size:11px;color:var(--muted);cursor:pointer;}
+.remember input{accent-color:var(--cyan);width:14px;height:14px;}
+.btn-primary{
+  width:100%;padding:14px;border:none;border-radius:12px;cursor:pointer;
+  background:linear-gradient(135deg,var(--cyan),var(--cyan2));
+  color:#08080f;font-family:'Orbitron',monospace;font-weight:700;
+  font-size:12px;letter-spacing:2px;transition:all .2s;
+}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 8px 25px rgba(0,212,255,0.35);}
+.btn-primary:active{transform:scale(0.98);}
+.err-msg{background:rgba(255,59,59,0.1);border:1px solid rgba(255,59,59,0.3);color:var(--red);border-radius:8px;padding:10px 14px;font-size:11px;margin-bottom:14px;display:none;}
+
+/* DASHBOARD LAYOUT */
+#app{display:none;height:100vh;overflow:hidden;}
+
+/* SIDEBAR */
+.sidebar{
+  position:fixed;left:0;top:0;bottom:0;width:210px;
+  background:var(--surface);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;z-index:50;
+}
+.sb-logo{padding:22px 20px 18px;border-bottom:1px solid var(--border);}
+.sb-logo-title{font-family:'Orbitron',monospace;font-size:14px;font-weight:700;color:var(--cyan);letter-spacing:2px;}
+.sb-logo-sub{font-size:8px;color:var(--muted);letter-spacing:2px;margin-top:3px;text-transform:uppercase;}
+.sb-nav{flex:1;padding:12px 0;overflow-y:auto;}
+.sb-nav::-webkit-scrollbar{width:0;}
+.nav-item{
+  display:flex;align-items:center;gap:12px;padding:11px 20px;
+  cursor:pointer;font-size:11px;color:var(--muted);
+  border-left:2px solid transparent;transition:all .2s;letter-spacing:.5px;
+}
+.nav-item:hover{color:var(--text);background:rgba(255,255,255,0.03);}
+.nav-item.active{color:var(--cyan);border-left-color:var(--cyan);background:rgba(0,212,255,0.06);}
+.nav-icon{font-size:14px;width:18px;text-align:center;}
+.sb-section{font-size:8px;color:var(--muted);letter-spacing:2px;padding:14px 20px 6px;text-transform:uppercase;opacity:.6;}
+.sb-bottom{padding:16px 20px;border-top:1px solid var(--border);}
+.sb-user{display:flex;align-items:center;gap:10px;}
+.sb-avatar{width:32px;height:32px;border-radius:50%;background:rgba(0,212,255,0.15);border:1px solid rgba(0,212,255,0.3);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--cyan);font-weight:600;}
+.sb-uname{font-size:11px;color:var(--text);}
+.sb-urole{font-size:9px;color:var(--muted);letter-spacing:1px;}
+.online-dot{width:6px;height:6px;border-radius:50%;background:var(--green);margin-left:auto;animation:blink 2s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* MAIN */
+.main{margin-left:210px;height:100vh;overflow-y:auto;padding:24px;scrollbar-width:thin;scrollbar-color:var(--surface3) transparent;}
+.main::-webkit-scrollbar{width:4px;}
+.main::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:2px;}
+
+/* PAGES */
+.page{display:none;}
+.page.active{display:block;}
+
+/* TOP BAR */
+.topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px;}
+.page-title{font-family:'Orbitron',monospace;font-size:16px;font-weight:700;letter-spacing:2px;}
+.topbar-right{display:flex;align-items:center;gap:12px;}
+.live-pill{display:flex;align-items:center;gap:6px;background:rgba(0,230,118,0.08);border:1px solid rgba(0,230,118,0.25);padding:5px 12px;border-radius:20px;font-size:10px;color:var(--green);letter-spacing:1px;}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:blink 1.5s infinite;}
+.device-id{font-size:10px;color:var(--muted);background:var(--surface2);padding:5px 12px;border-radius:20px;border:1px solid var(--border);}
+
+/* STATUS GRID */
+.status-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;}
+.scard{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:12px;padding:16px;position:relative;overflow:hidden;
+  transition:all .3s;cursor:default;
+}
+.scard:hover{border-color:var(--border2);transform:translateY(-1px);}
+.scard::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;border-radius:12px 12px 0 0;}
+.scard.c-green::after{background:var(--green);}
+.scard.c-red::after{background:var(--red);animation:danger .8s infinite;}
+.scard.c-yellow::after{background:var(--yellow);}
+.scard.c-cyan::after{background:var(--cyan);}
+.scard.c-purple::after{background:var(--purple);}
+@keyframes danger{0%,100%{opacity:1}50%{opacity:.2}}
+.scard-label{font-size:8px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;}
+.scard-value{font-family:'Orbitron',monospace;font-size:22px;font-weight:700;line-height:1;margin-bottom:6px;}
+.scard-unit{font-size:9px;color:var(--muted);}
+.scard-status{display:flex;align-items:center;gap:5px;margin-top:8px;font-size:9px;}
+.sdot{width:5px;height:5px;border-radius:50%;flex-shrink:0;}
+.v-green{color:var(--green);}
+.v-red{color:var(--red);}
+.v-yellow{color:var(--yellow);}
+.v-cyan{color:var(--cyan);}
+.v-purple{color:var(--purple);}
+.batt-bar{height:3px;background:var(--surface3);border-radius:2px;margin-top:8px;overflow:hidden;}
+.batt-fill{height:100%;border-radius:2px;transition:width .5s;}
+
+/* BOTTOM ROW */
+.bottom-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px;}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+.panel-head{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);}
+.panel-title{font-size:9px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;}
+.panel-action{font-size:9px;color:var(--cyan);cursor:pointer;}
+
+/* MAP */
+.map-box{height:160px;background:#0a0f1a;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;}
+.leaflet-shell{position:absolute;inset:0;}
+.leaflet-shell .leaflet-container{background:#0a0f1a;font-family:'JetBrains Mono',monospace;}
+.leaflet-control-zoom{border:none !important;box-shadow:none !important;}
+.leaflet-control-zoom a{background:rgba(15,15,26,0.92) !important;border:1px solid rgba(255,255,255,0.12) !important;color:var(--text) !important;}
+.leaflet-control-zoom a:hover{background:rgba(22,22,37,0.95) !important;}
+.map-coords{position:absolute;bottom:8px;left:12px;font-size:9px;color:rgba(0,212,255,0.6);z-index:3;}
+.map-speed{position:absolute;top:8px;right:12px;font-family:'Orbitron',monospace;font-size:11px;color:var(--cyan);z-index:3;}
+
+/* ALERTS */
+.alert-list{padding:8px;}
+.alert-row{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;margin-bottom:4px;font-size:10px;border-left:2px solid;background:var(--surface2);}
+.alert-row.c-red{border-color:var(--red);}
+.alert-row.c-yellow{border-color:var(--yellow);}
+.alert-row.c-cyan{border-color:var(--cyan);}
+.alert-row.c-green{border-color:var(--green);}
+.alert-type{font-weight:600;font-size:9px;letter-spacing:.5px;}
+.alert-desc{color:var(--muted);font-size:9px;margin-top:1px;}
+.alert-time{margin-left:auto;color:var(--muted);font-size:8px;white-space:nowrap;}
+
+/* SPEED CHART */
+.chart-wrap{padding:12px;height:160px;display:flex;flex-direction:column;}
+.chart-bars{display:flex;align-items:flex-end;gap:3px;flex:1;}
+.bar{border-radius:2px 2px 0 0;flex:1;transition:all .3s;min-height:3px;cursor:pointer;}
+.bar:hover{filter:brightness(1.3);}
+.chart-labels{display:flex;justify-content:space-between;font-size:8px;color:var(--muted);margin-top:6px;}
+
+/* STATS ROW */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;}
+.stat-box{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;}
+.stat-num{font-family:'Orbitron',monospace;font-size:20px;font-weight:700;color:var(--cyan);}
+.stat-label{font-size:9px;color:var(--muted);letter-spacing:1px;margin-top:4px;text-transform:uppercase;}
+
+/* ALERTS PAGE */
+.alerts-filters{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;}
+.filter-btn{padding:6px 14px;border-radius:20px;border:1px solid var(--border2);background:transparent;color:var(--muted);font-family:'JetBrains Mono',monospace;font-size:10px;cursor:pointer;transition:all .2s;letter-spacing:.5px;}
+.filter-btn.active,.filter-btn:hover{background:rgba(0,212,255,0.1);border-color:rgba(0,212,255,0.4);color:var(--cyan);}
+.alerts-table{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+.at-head{display:grid;grid-template-columns:140px 100px 90px 1fr 80px 90px;gap:0;padding:10px 16px;border-bottom:1px solid var(--border);font-size:8px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;}
+.at-row{display:grid;grid-template-columns:140px 100px 90px 1fr 80px 90px;gap:0;padding:12px 16px;border-bottom:1px solid var(--border);font-size:11px;transition:background .2s;}
+.at-row:last-child{border-bottom:none;}
+.at-row:hover{background:var(--surface2);}
+.badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:8px;letter-spacing:.5px;font-weight:600;}
+.badge-red{background:rgba(255,59,59,0.12);color:var(--red);border:1px solid rgba(255,59,59,0.25);}
+.badge-yellow{background:rgba(255,170,0,0.12);color:var(--yellow);border:1px solid rgba(255,170,0,0.25);}
+.badge-cyan{background:rgba(0,212,255,0.1);color:var(--cyan);border:1px solid rgba(0,212,255,0.25);}
+.badge-green{background:rgba(0,230,118,0.1);color:var(--green);border:1px solid rgba(0,230,118,0.25);}
+
+/* DEVICE CONTROL PAGE */
+.device-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:16px;align-items:start;}
+.device-card{background:linear-gradient(180deg, rgba(16,16,28,0.98), rgba(12,12,22,0.98));border:1px solid var(--border);border-radius:18px;padding:18px 20px 20px;box-shadow:0 10px 30px rgba(0,0,0,.18);min-height:560px;}
+.device-title{font-family:'Orbitron',monospace;font-size:12px;color:var(--cyan);letter-spacing:1.6px;margin-bottom:14px;}
+.control-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 0;border-bottom:1px solid rgba(255,255,255,0.05);font-size:12px;color:var(--text);}
+.control-row:last-child{border-bottom:none;}
+.toggle{position:relative;width:46px;height:26px;cursor:pointer;flex-shrink:0;}
+.toggle input{opacity:0;width:0;height:0;}
+.toggle-slider{position:absolute;inset:0;background:#212234;border:1px solid rgba(255,255,255,0.08);border-radius:999px;transition:.25s;box-shadow:inset 0 0 0 1px rgba(0,0,0,.12);}
+.toggle-slider::before{content:'';position:absolute;height:18px;width:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.25s;box-shadow:0 4px 12px rgba(0,0,0,.25);}
+.toggle input:checked + .toggle-slider{background:rgba(0,212,255,0.9);border-color:rgba(0,212,255,0.65);}
+.toggle input:checked + .toggle-slider::before{transform:translateX(20px);}
+.slider-row{padding:14px 0 8px;}
+.slider-label{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--cyan);font-weight:600;margin-bottom:10px;letter-spacing:.2px;}
+.slider-label span:last-child{font-family:'Orbitron',monospace;color:var(--cyan);font-size:11px;}
+.device-card input[type=range]{width:100%;appearance:none;-webkit-appearance:none;height:4px;border-radius:999px;background:linear-gradient(90deg, rgba(0,212,255,0.2), rgba(0,212,255,0.5));outline:none;}
+.device-card input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:var(--cyan);border:2px solid #11131f;box-shadow:0 0 0 4px rgba(0,212,255,0.12);cursor:pointer;}
+.device-card input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:var(--cyan);border:2px solid #11131f;box-shadow:0 0 0 4px rgba(0,212,255,0.12);cursor:pointer;}
+.sim-btn{width:100%;margin-top:18px;padding:14px;border-radius:14px;border:1px solid rgba(0,212,255,0.25);background:rgba(0,212,255,0.08);color:var(--cyan);font-family:'Orbitron',monospace;font-size:12px;font-weight:700;letter-spacing:1.5px;cursor:pointer;transition:all .2s;}
+.sim-btn:hover{background:rgba(0,212,255,0.16);transform:translateY(-1px);}
+.device-info-row{display:grid;grid-template-columns:1fr auto;gap:14px;align-items:center;padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.05);font-size:12px;}
+.device-info-row:last-child{border-bottom:none;}
+.info-key{color:var(--muted);letter-spacing:.8px;text-transform:uppercase;font-size:9px;}
+.info-val{color:var(--text);font-family:'Orbitron',monospace;font-size:12px;}
+.status-indicator{display:inline-flex;align-items:center;gap:6px;font-family:'Orbitron',monospace;font-size:12px;}
+
+@media (max-width: 1100px){
+  .device-grid{grid-template-columns:1fr;}
+  .device-card{min-height:auto;}
+}
+
+/* ANALYTICS PAGE */
+.chart-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:12px;}
+.chart-title{font-family:'Orbitron',monospace;font-size:11px;color:var(--text);letter-spacing:1px;margin-bottom:16px;}
+.line-chart{height:120px;position:relative;overflow:hidden;}
+
+/* MESSAGES PAGE */
+.msg-layout{display:grid;grid-template-columns:280px minmax(0,1fr);gap:16px;height:calc(100vh - 130px);min-height:620px;align-items:stretch;}
+.contact-list{background:linear-gradient(180deg, rgba(16,16,28,0.98), rgba(12,12,22,0.98));border:1px solid var(--border);border-radius:18px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 10px 30px rgba(0,0,0,.18);}
+.contact-head{padding:14px 18px;border-bottom:1px solid rgba(255,255,255,0.05);font-size:9px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;background:rgba(255,255,255,0.01);}
+.contact-head::after{content:'Live updates';float:right;color:rgba(0,212,255,0.7);letter-spacing:1px;}
+.contact-list #contact-list-items{overflow-y:auto;flex:1;}
+.contact-item{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.05);transition:background .2s,border-color .2s;min-height:72px;}
+.contact-item:hover,.contact-item.active{background:rgba(0,212,255,0.06);border-left:3px solid var(--cyan);padding-left:13px;}
+.contact-item.active{background:rgba(0,212,255,0.08);}
+.contact-avatar{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;box-shadow:0 0 0 1px rgba(255,255,255,0.08) inset;}
+.contact-name{font-size:12px;color:var(--text);line-height:1.2;}
+.contact-last{font-size:9px;color:var(--muted);margin-top:4px;line-height:1.35;white-space:normal;overflow:hidden;display:-webkit-box;line-clamp:2;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
+.chat-area{background:linear-gradient(180deg, rgba(16,16,28,0.98), rgba(12,12,22,0.98));border:1px solid var(--border);border-radius:18px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.18);min-width:0;}
+.chat-head{padding:16px 18px;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;align-items:center;gap:12px;background:rgba(255,255,255,0.01);}
+.chat-msgs{flex:1;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:12px;background:radial-gradient(circle at top, rgba(0,212,255,0.03), transparent 34%);}
+.msg-bubble{max-width:75%;padding:12px 14px;border-radius:14px;font-size:11px;line-height:1.55;word-break:break-word;box-shadow:0 8px 24px rgba(0,0,0,.16);}
+.msg-in{background:rgba(255,255,255,0.04);color:var(--text);align-self:flex-start;border-bottom-left-radius:4px;border:1px solid rgba(255,255,255,0.05);}
+.msg-out{background:rgba(0,212,255,0.12);color:var(--cyan);align-self:flex-end;border-bottom-right-radius:4px;border:1px solid rgba(0,212,255,0.22);}
+.msg-time{font-size:8px;color:var(--muted);margin-top:4px;letter-spacing:.4px;}
+.chat-input-row{padding:14px 16px;border-top:1px solid rgba(255,255,255,0.05);display:flex;gap:10px;background:rgba(255,255,255,0.01);}
+.chat-input{flex:1;background:var(--surface2);border:1px solid var(--border2);border-radius:12px;padding:12px 14px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:12px;outline:none;}
+.chat-input:focus{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(0,212,255,0.08);}
+.send-btn{padding:12px 18px;background:var(--cyan);color:#08080f;border:none;border-radius:12px;font-family:'Orbitron',monospace;font-size:10px;font-weight:700;cursor:pointer;letter-spacing:1px;min-width:84px;}
+.send-btn:hover{filter:brightness(1.06);}
+
+@media (max-width: 1100px){
+  .msg-layout{grid-template-columns:1fr;min-height:auto;height:auto;}
+}
+
+/* TOAST */
+.toast-container{position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px;}
+.toast{padding:12px 18px;border-radius:10px;font-size:11px;display:flex;align-items:center;gap:10px;animation:toastIn .3s ease;border:1px solid;max-width:300px;}
+@keyframes toastIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+.toast.red{background:rgba(255,59,59,0.15);border-color:rgba(255,59,59,0.4);color:var(--red);}
+.toast.green{background:rgba(0,230,118,0.12);border-color:rgba(0,230,118,0.35);color:var(--green);}
+.toast.cyan{background:rgba(0,212,255,0.1);border-color:rgba(0,212,255,0.3);color:var(--cyan);}
+.toast.yellow{background:rgba(255,170,0,0.1);border-color:rgba(255,170,0,0.3);color:var(--yellow);}
+</style>
+</head>
+<body>
+
+<!-- --------------- LOGIN PAGE --------------- -->
+<div id="login-page">
+  <div class="grid-bg"></div>
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="logo-icon">SH</div>
+      <div class="logo-title">SAFERIDE</div>
+      <div class="logo-sub">Smart Helmet Safety System</div>
+    </div>
+    <div class="tab-row">
+      <div class="tab active" onclick="switchTab('login')">LOGIN</div>
+      <div class="tab" onclick="switchTab('signup')">SIGN UP</div>
+    </div>
+    <div id="err-msg" class="err-msg">Invalid credentials. Use any email + password.</div>
+
+    <!-- LOGIN FORM -->
+    <div id="login-form">
+      <div class="field"><label>Email Address</label><input type="email" id="l-email" placeholder="rider@saferide.com"/></div>
+      <div class="field"><label>Password</label><input type="password" id="l-pass" placeholder="********"/></div>
+      <label class="remember"><input type="checkbox" checked/> Remember me</label>
+      <button class="btn-primary" onclick="doLogin()">LOGIN -></button>
+    </div>
+
+    <!-- SIGNUP FORM -->
+    <div id="signup-form" style="display:none">
+      <div class="field"><label>Full Name</label><input type="text" id="s-name" placeholder="Anshika Shukla"/></div>
+      <div class="field"><label>Email Address</label><input type="email" id="s-email" placeholder="rider@saferide.com"/></div>
+      <div class="field"><label>Password</label><input type="password" id="s-pass" placeholder="********"/></div>
+      <div class="field"><label>Role</label>
+        <select id="s-role" style="width:100%;padding:13px 16px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.12);border-radius:10px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:13px;outline:none;">
+          <option value="user">Rider</option><option value="admin">Admin</option>
+        </select>
+      </div>
+      <button class="btn-primary" onclick="doSignup()">CREATE ACCOUNT -></button>
+    </div>
+  </div>
+</div>
+
+<!-- --------------- TOAST --------------- -->
+<div class="toast-container" id="toasts"></div>
+
+<!-- --------------- MAIN APP --------------- -->
+<div id="app">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sb-logo">
+      <div class="sb-logo-title">SAFERIDE</div>
+      <div class="sb-logo-sub">Safety Dashboard</div>
+    </div>
+    <div class="sb-nav">
+      <div class="sb-section">Monitor</div>
+      <div class="nav-item active" onclick="showPage('dashboard',this)"><span class="nav-icon">DB</span>Dashboard</div>
+      <div class="nav-item" onclick="showPage('map',this)"><span class="nav-icon">MP</span>Live Map</div>
+      <div class="nav-item" onclick="showPage('alerts',this)"><span class="nav-icon">AL</span>Alerts</div>
+      <div class="sb-section">Data</div>
+      <div class="nav-item" onclick="showPage('analytics',this)"><span class="nav-icon">AN</span>Analytics</div>
+      <div class="nav-item" onclick="showPage('messages',this)"><span class="nav-icon">MS</span>Messages</div>
+      <div class="sb-section">Control</div>
+      <div class="nav-item" onclick="showPage('device',this)"><span class="nav-icon">CT</span>Device Control</div>
+    </div>
+    <div class="sb-bottom">
+      <div class="sb-user">
+        <div class="sb-avatar" id="sb-avatar">A</div>
+        <div><div class="sb-uname" id="sb-uname">Anshika</div><div class="sb-urole" id="sb-urole">Rider</div></div>
+        <div class="online-dot"></div>
+      </div>
+      <button onclick="logout()" style="margin-top:12px;width:100%;padding:8px;background:transparent;border:1px solid var(--border2);color:var(--muted);border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:10px;cursor:pointer;letter-spacing:1px;">LOGOUT</button>
+    </div>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <div class="main">
+
+    <!-- -- DASHBOARD PAGE -- -->
+    <div class="page active" id="page-dashboard">
+      <div class="topbar">
+        <div class="page-title">📊 DASHBOARD</div>
+        <div class="topbar-right">
+          <div class="device-id">HELMET_001</div>
+          <div class="live-pill" id="status-badge"><div class="live-dot"></div>LIVE</div>
+        </div>
+      </div>
+
+      <!-- Quick Stats -->
+      <div class="stats-row">
+        <div class="stat-box"><div class="stat-num" id="stat-alerts">0</div><div class="stat-label">Alerts Today</div></div>
+        <div class="stat-box"><div class="stat-num" id="stat-sms">0</div><div class="stat-label">SMS Sent</div></div>
+        <div class="stat-box"><div class="stat-num" id="stat-uptime">2h 14m</div><div class="stat-label">Session Uptime</div></div>
+        <div class="stat-box"><div class="stat-num" id="stat-calls">0</div><div class="stat-label">Calls Sent</div></div>
+      </div>
+
+      <!-- Status Cards -->
+      <div class="status-grid">
+        <div class="scard c-green">
+          <div class="scard-label">Helmet Status</div>
+          <div class="scard-value v-green" id="cv-helmet">ON</div>
+          <div class="scard-status"><div class="sdot" style="background:var(--green)"></div><span class="v-green">Properly Worn</span></div>
+        </div>
+        <div class="scard c-green" id="card-alcohol">
+          <div class="scard-label">Alcohol Level</div>
+          <div class="scard-value v-green" id="cv-alcohol">CLEAR</div>
+          <div class="scard-status"><div class="sdot" style="background:var(--green)"></div><span style="color:var(--muted)">MQ-3: <span id="cv-alcohol-raw">87</span></span></div>
+        </div>
+        <div class="scard c-cyan" id="card-speed">
+          <div class="scard-label">Speed</div>
+          <div class="scard-value v-cyan"><span id="cv-speed">SENSOR REQ</span><span style="font-size:12px"></span></div>
+          <div class="scard-unit">GPS * GTPA013</div>
+        </div>
+        <div class="scard c-green" id="card-accident">
+          <div class="scard-label">Accident Status</div>
+          <div class="scard-value v-green" id="cv-accident">SAFE</div>
+          <div class="scard-status"><div class="sdot" style="background:var(--green)"></div><span style="color:var(--muted)">Acc: <span id="cv-acc-raw">1240</span></span></div>
+        </div>
+        <div class="scard c-yellow" id="card-battery">
+          <div class="scard-label">Battery Level</div>
+          <div class="scard-value v-yellow" id="cv-battery">28%</div>
+          <div class="batt-bar"><div class="batt-fill" id="batt-fill" style="width:28%;background:var(--yellow)"></div></div>
+        </div>
+        <div class="scard c-green">
+          <div class="scard-label">UV Index</div>
+          <div class="scard-value v-green" id="cv-uv">2.1</div>
+          <div class="scard-status"><div class="sdot" style="background:var(--green)"></div><span class="v-green">Low Risk</span></div>
+        </div>
+        <div class="scard c-cyan">
+          <div class="scard-label">GSM Signal</div>
+          <div class="scard-value v-cyan">18<span style="font-size:10px">/31</span></div>
+          <div class="scard-unit">SIM900L * Good</div>
+        </div>
+        <div class="scard c-cyan" id="card-system">
+          <div class="scard-label">SYSTEM STATUS</div>
+          <div class="scard-value v-cyan" id="system-card-value">ON</div>
+          <div class="scard-status"><div class="sdot" style="background:var(--cyan)"></div><span class="v-cyan" id="system-card-state">Engine Active</span></div>
+        </div>
+      </div>
+
+      <!-- Bottom Row -->
+      <div class="bottom-row">
+        <!-- MAP -->
+        <div class="panel">
+          <div class="panel-head"><span class="panel-title">Live Location</span><span class="panel-action" onclick="showPage('map',null)">Full Map -></span></div>
+          <div class="map-box">
+            <div class="leaflet-shell" id="mini-map"></div>
+            <div class="map-coords">26.9124 deg N  75.7873 deg E</div>
+            <div class="map-speed" id="map-speed">SENSOR REQ</div>
+          </div>
+        </div>
+
+        <!-- ALERTS -->
+        <div class="panel">
+          <div class="panel-head"><span class="panel-title">Recent Alerts</span><span class="panel-action" onclick="showPage('alerts',null)">View All -></span></div>
+          <div class="alert-list" id="recent-alert-list">
+            <div style="padding:12px 10px;color:var(--muted);font-size:10px;">No alerts yet.</div>
+          </div>
+        </div>
+
+        <!-- SPEED CHART -->
+        <div class="panel">
+          <div class="panel-head"><span class="panel-title">Speed - 15 Min</span><span style="font-size:9px;color:var(--muted)">km/h</span></div>
+          <div class="chart-wrap">
+            <div class="chart-bars" id="speed-bars"></div>
+            <div class="chart-labels"><span>-15m</span><span>-10m</span><span>-5m</span><span>now</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- -- MAP PAGE -- -->
+    <div class="page" id="page-map">
+      <div class="topbar"><div class="page-title">🗺️ LIVE MAP</div><div class="live-pill"><div class="live-dot"></div>GPS TRACKING</div></div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;">
+        <div style="height:420px;background:#0a0f1a;position:relative;overflow:hidden;">
+          <div class="leaflet-shell" id="full-map"></div>
+          <div id="map-location-banner" style="position:absolute;top:16px;left:16px;font-family:'Orbitron',monospace;font-size:11px;color:var(--cyan);background:rgba(8,8,15,0.8);padding:8px 14px;border-radius:8px;border:1px solid rgba(0,212,255,0.2);">
+            Location: 26.9124 deg N, 75.7873 deg E
+          </div>
+          <div style="position:absolute;bottom:16px;right:16px;font-size:10px;color:var(--muted);">Jaipur, Rajasthan, India</div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--border);">
+          <div style="padding:14px 18px;border-right:1px solid var(--border)"><div style="font-size:8px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px;">Latitude</div><div style="font-family:'Orbitron',monospace;font-size:14px;color:var(--cyan);" id="map-lat">26.9124 deg</div></div>
+          <div style="padding:14px 18px;border-right:1px solid var(--border)"><div style="font-size:8px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px;">Longitude</div><div style="font-family:'Orbitron',monospace;font-size:14px;color:var(--cyan);" id="map-lng">75.7873 deg</div></div>
+          <div style="padding:14px 18px;border-right:1px solid var(--border)"><div style="font-size:8px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px;">Speed</div><div style="font-family:'Orbitron',monospace;font-size:14px;color:var(--cyan);" id="map-speed2">SENSOR REQ</div></div>
+          <div style="padding:14px 18px;"><div style="font-size:8px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px;">GPS Fix</div><div style="font-family:'Orbitron',monospace;font-size:14px;color:var(--green);">LOCKED</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- -- ALERTS PAGE -- -->
+    <div class="page" id="page-alerts">
+      <div class="topbar"><div class="page-title">⚠️ ALERT CENTER</div><div class="device-id" id="alert-count-badge">0 total alerts</div></div>
+      <div class="alerts-filters">
+        <button class="filter-btn active">All</button>
+        <button class="filter-btn">Accident</button>
+        <button class="filter-btn">Alcohol</button>
+        <button class="filter-btn">Helmet Off</button>
+        <button class="filter-btn">Low Battery</button>
+        <button class="filter-btn">UV Warning</button>
+      </div>
+      <div class="alerts-table">
+        <div class="at-head"><span>Timestamp</span><span>Type</span><span>Severity</span><span>Message</span><span>SMS</span><span>Status</span></div>
+        <div id="alert-center-list">
+          <div style="padding:12px 10px;color:var(--muted);font-size:10px;">No alerts yet.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- -- ANALYTICS PAGE -- -->
+    <div class="page" id="page-analytics">
+      <div class="topbar"><div class="page-title">📈 ANALYTICS</div><div class="topbar-right"><div class="device-id">Last 7 Days</div></div></div>
+      <div class="chart-card">
+        <div class="chart-title">ALERT TREND (BY DAY)</div>
+        <div class="line-chart">
+          <svg id="analytics-alert-trend" viewBox="0 0 700 120" preserveAspectRatio="none"></svg>
+        </div>
+        <div class="chart-labels" id="analytics-trend-labels"><span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="chart-card">
+          <div class="chart-title">ALERT FREQUENCY</div>
+          <div id="analytics-frequency-bars" style="display:flex;align-items:flex-end;gap:8px;height:100px;"></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">HELMET USAGE FROM ALERTS</div>
+          <div style="display:flex;align-items:center;justify-content:center;gap:24px;height:100px;">
+            <svg width="90" height="90" viewBox="0 0 90 90">
+              <circle cx="45" cy="45" r="35" fill="none" stroke="var(--surface3)" stroke-width="10"/>
+              <circle id="analytics-helmet-ring" cx="45" cy="45" r="35" fill="none" stroke="var(--green)" stroke-width="10" stroke-dasharray="188 220" stroke-dashoffset="-27" stroke-linecap="round"/>
+              <text id="analytics-helmet-percent" x="45" y="50" text-anchor="middle" font-family="Orbitron" font-size="14" fill="var(--green)" font-weight="700">0%</text>
+            </svg>
+            <div>
+              <div id="analytics-helmet-worn" style="display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:10px;"><div style="width:10px;height:10px;border-radius:50%;background:var(--green)"></div>Worn: 0%</div>
+              <div id="analytics-helmet-off" style="display:flex;align-items:center;gap:8px;font-size:10px;color:var(--muted);"><div style="width:10px;height:10px;border-radius:50%;background:var(--surface3)"></div>Off: 100%</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- -- MESSAGES PAGE -- -->
+    <div class="page" id="page-messages">
+      <div class="topbar">
+        <div class="page-title">💬 GSM MESSAGES</div>
+        <div class="topbar-right"><div class="device-id">AUTO SYNC</div><div class="live-pill"><div class="live-dot"></div>ALERT LINKED</div></div>
+      </div>
+      <div class="msg-layout">
+        <div class="contact-list">
+          <div class="contact-head">Emergency Contacts</div>
+          <div id="contact-list-items"></div>
+        </div>
+        <div class="chat-area">
+          <div class="chat-head">
+            <div class="contact-avatar" id="chat-avatar" style="background:rgba(255,59,59,0.15);color:var(--red);width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;">EM</div>
+            <div style="flex:1;min-width:0;"><div style="font-size:12px;font-weight:700;letter-spacing:.5px;" id="chat-title">Emergency - Mom</div><div style="font-size:9px;color:var(--green);margin-top:2px;" id="chat-phone">+91 8957631665</div></div>
+            <button class="send-btn" id="chat-call-btn" style="padding:8px 12px;font-size:9px;">CALL</button>
+          </div>
+          <div class="chat-msgs" id="chat-msgs"></div>
+          <div class="chat-input-row">
+            <input class="chat-input" id="chat-input" placeholder="Type a message to send via GSM or wait for alerts..." onkeydown="if(event.key==='Enter')sendMsg()"/>
+            <button class="send-btn" onclick="sendMsg()">SEND</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- -- DEVICE PAGE -- -->
+    <div class="page" id="page-device">
+      <div class="topbar"><div class="page-title">⚙️ DEVICE CONTROL</div><div class="live-pill"><div class="live-dot"></div>HELMET_001</div></div>
+      <div class="device-grid">
+        <!-- Sensor Toggles -->
+        <div class="device-card">
+          <div class="device-title">SENSOR SIMULATION</div>
+          <div class="control-row"><span>Helmet Worn (IR Sensor)</span><label class="toggle"><input id="helmet-toggle" type="checkbox" checked onchange="updateSensor('helmet',this.checked)"/><span class="toggle-slider"></span></label></div>
+          <div class="control-row"><span>Alcohol Detected (MQ-3)</span><label class="toggle"><input id="alcohol-toggle" type="checkbox" onchange="updateSensor('alcohol',this.checked)"/><span class="toggle-slider"></span></label></div>
+          <div class="control-row"><span>Accident Detected (MPU6050)</span><label class="toggle"><input id="accident-toggle" type="checkbox" onchange="updateSensor('accident',this.checked)"/><span class="toggle-slider"></span></label></div>
+          <div class="control-row"><span>Ignition ON</span><label class="toggle"><input id="ignition-toggle" type="checkbox" checked onchange="updateIgnition(this.checked)"/><span class="toggle-slider"></span></label></div>
+          <div class="slider-row">
+            <div class="slider-label"><span>Speed (km/h)</span><span id="speed-val">SENSOR REQ</span></div>
+            <input type="range" min="0" max="150" value="0" oninput="document.getElementById('speed-val').textContent=this.value;document.getElementById('cv-speed').textContent=this.value;document.getElementById('map-speed').textContent=this.value+' km/h';document.getElementById('map-speed2').textContent=this.value+' km/h'"/>
+          </div>
+          <div class="slider-row">
+            <div class="slider-label"><span>Alcohol Raw (MQ-3)</span><span id="alc-val">87</span></div>
+            <input type="range" min="0" max="1023" value="87" oninput="document.getElementById('alc-val').textContent=this.value;document.getElementById('cv-alcohol-raw').textContent=this.value"/>
+          </div>
+          <div class="slider-row">
+            <div class="slider-label"><span>Battery %</span><span id="bat-val">28</span></div>
+            <input type="range" min="0" max="100" value="28" oninput="updateBattery(this.value)"/>
+          </div>
+          <button class="sim-btn" onclick="sendSimData()"> SEND TO DASHBOARD</button>
+        </div>
+
+        <!-- Device Info -->
+        <div class="device-card">
+          <div class="device-title">DEVICE INFO</div>
+          <div class="device-info-row"><span class="info-key">Device ID</span><span class="info-val">HELMET_001</span></div>
+          <div class="device-info-row"><span class="info-key">Controller</span><span class="info-val">Arduino Uno R3</span></div>
+          <div class="device-info-row"><span class="info-key">Last Seen</span><span class="info-val" id="last-seen">Just now</span></div>
+          <div class="device-info-row"><span class="info-key">GPS Module</span><span class="info-val v-green">SIM28MGPS Receiver Module </span></div>
+          <div class="device-info-row"><span class="info-key">GSM Module</span><span class="info-val v-green">SIM900L </span></div>
+          <div class="device-info-row"><span class="info-key">MPU6050</span><span class="info-val v-green">Active </span></div>
+          <div class="device-info-row"><span class="info-key">MQ-3 Sensor</span><span class="info-val v-green">Ready </span></div>
+          <div class="device-info-row"><span class="info-key">IR Sensor</span><span class="info-val v-green">Detecting </span></div>
+          <div class="device-info-row"><span class="info-key">VEML6075 UV</span><span class="info-val v-green">Active </span></div>
+          <div class="device-info-row"><span class="info-key">Connection</span><span class="info-val"><span class="status-indicator"><span style="width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block"></span> Connected</span></span></div>
+          <div class="device-info-row"><span class="info-key">Ignition</span><span class="info-val" id="ignition-state">ON</span></div>
+          <div class="device-info-row"><span class="info-key">Threshold (Acc)</span><span class="info-val">&gt; 15000</span></div>
+          <div class="device-info-row"><span class="info-key">Threshold (Alc)</span><span class="info-val">&gt; 300</span></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end main -->
+</div><!-- end app -->
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="./app.js"></script>
+</body>
+</html>
+
+

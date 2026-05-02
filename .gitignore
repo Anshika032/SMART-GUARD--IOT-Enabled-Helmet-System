@@ -1,0 +1,59 @@
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environment
+venv/
+env/
+.venv/
+
+# Environment variables / secrets
+.env
+.envrc
+
+# Twilio / API secret files
+twilio info.txt
+*.key
+*.pem
+
+# Build files
+build/
+dist/
+*.egg-info/
+
+# Logs
+*.log
+
+# Database
+*.db
+*.sqlite3
+
+# IDE files
+.vscode/
+.idea/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Temporary files
+tempCodeRunnerFile.py
+
+# Arduino build files
+*.hex
+*.elf
+
+# Node modules (if frontend exists)
+node_modules/
+
+# Local config files
+config.local.py
