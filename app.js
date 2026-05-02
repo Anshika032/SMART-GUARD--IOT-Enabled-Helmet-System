@@ -325,16 +325,8 @@ function initLeafletMaps(){
     iconSize:size==='mini'?[20,20]:[24,24],
     iconAnchor:size==='mini'?[10,10]:[12,12]
   });
-
-  nearbyPlaces.forEach(place=>{
-    const label=place.type==='hospital'?'Hospital':'Police Station';
-    const fullPoi=L.marker([place.lat,place.lng],{icon:makePoiIcon(place.short,place.color)}).addTo(fullMap);
-    fullPoi.bindPopup(`<b>${place.name}</b><br/>${label}<br/>${place.lat.toFixed(4)}, ${place.lng.toFixed(4)}`);
-    fullPoiMarkers.push(fullPoi);
-
-    const miniPoi=L.marker([place.lat,place.lng],{icon:makePoiIcon(place.short,place.color,'mini'),interactive:false}).addTo(miniMap);
-    miniPoiMarkers.push(miniPoi);
-  });
+  / SMART-GUARD Helmet System
+/Developed by Anshika Shukla
 }
 
 function updateMapLocation(lat,lng){
@@ -399,15 +391,6 @@ function applyTelemetry(next){
   document.getElementById('last-seen').textContent='Just now';
 }
 
-function normalizeGpsPayload(payload){
-  if(!payload || typeof payload!=='object') return null;
-  const lat=Number(payload.lat ?? payload.latitude);
-  const lng=Number(payload.lng ?? payload.lon ?? payload.longitude);
-  const speed=Number(payload.speed ?? payload.kmh ?? payload.velocity);
-  if(Number.isNaN(lat) || Number.isNaN(lng)) return null;
-  return {lat,lng,speed:Number.isNaN(speed)?undefined:speed};
-}
-
 function handleExternalGps(payload){
   const parsed=normalizeGpsPayload(payload);
   if(!parsed) return;
@@ -453,12 +436,6 @@ function startBrowserGeolocation(){
     }
   );
 }
-
-function startGpsIngestion(){
-  window.pushGpsUpdate=function(payloadOrLat,lng,speed){
-    if(typeof payloadOrLat==='object'){
-      handleExternalGps(payloadOrLat);
-      return;
     }
     handleExternalGps({lat:payloadOrLat,lng,speed});
   };
@@ -512,18 +489,6 @@ function renderRecentAlerts(alerts){
   const dashboardList=document.getElementById('recent-alert-list');
   const centerList=document.getElementById('alert-center-list');
   const emptyMarkup='<div style="padding:12px 10px;color:var(--muted);font-size:10px;">No alerts yet.</div>';
-
-  if(dashboardList){
-    dashboardList.innerHTML='';
-    if(alerts.length){
-      alerts.slice(0,3).forEach(alertItem=>{
-        const row=document.createElement('div');
-        const colorClass=alertItem.kind==='ACCIDENT'?'c-red':alertItem.kind==='ALCOHOL'?'c-yellow':alertItem.kind==='HELMET OFF'?'c-cyan':'c-green';
-        const typeColor=alertItem.kind==='ACCIDENT'?'var(--red)':alertItem.kind==='ALCOHOL'?'var(--yellow)':alertItem.kind==='HELMET OFF'?'var(--cyan)':'var(--green)';
-        row.className=`alert-row ${colorClass}`;
-        row.innerHTML=`<div><div class="alert-type" style="color:${typeColor}">${alertItem.kind || ''}</div><div class="alert-desc">${alertItem.message || ''}</div></div><div class="alert-time">${alertItem.time || ''}</div>`;
-        dashboardList.appendChild(row);
-      });
     } else {
       dashboardList.innerHTML=emptyMarkup;
     }
@@ -592,18 +557,6 @@ function renderAlertFrequency(alerts){
   alerts.forEach(item=>{
     const index=item.ts ? new Date(item.ts * 1000).getDay() : new Date().getDay();
     counts[index]+=1;
-  });
-
-  const max=Math.max(1,...counts);
-  wrap.innerHTML=labels.map((label,index)=>{
-    const pct=Math.max(10,Math.round((counts[index]/max)*100));
-    const color=counts[index]===0 ? 'rgba(0,212,255,0.2)' : counts[index] >= max*0.7 ? 'rgba(255,59,59,0.75)' : counts[index] >= max*0.4 ? 'rgba(255,170,0,0.75)' : 'rgba(0,212,255,0.7)';
-    return `
-      <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;">
-        <div style="flex:1;background:${color};width:100%;border-radius:3px 3px 0 0;height:${pct}%;min-height:8px;"></div>
-        <div style="font-size:8px;color:var(--muted)">${label}</div>
-      </div>
-    `;
   }).join('');
 }
 
@@ -632,42 +585,7 @@ function startLiveUpdates(){
     const nextLat=mapState.lat+(Math.random()-0.5)*0.0012;
     const nextLng=mapState.lng+(Math.random()-0.5)*0.0012;
     applyTelemetry({lat:nextLat,lng:nextLng});
-  },3000);
-}
-
-function updateBattery(v){
-  document.getElementById('bat-val').textContent=v;
-  document.getElementById('cv-battery').textContent=v+'%';
-  document.getElementById('batt-fill').style.width=v+'%';
-  const card=document.getElementById('card-battery');
-  const fill=document.getElementById('batt-fill');
-  if(v<15){card.className='scard c-red';fill.style.background='var(--red)';}
-  else if(v<30){card.className='scard c-yellow';fill.style.background='var(--yellow)';}
-  else{card.className='scard c-green';fill.style.background='var(--green)';}
-}
-
-function updateSensor(type,val){
-  if(sensorStates[type]===val) return;
-  sensorStates[type]=val;
-  syncDeviceSensorUi(type, val);
-  if(type==='helmet'){
-    document.getElementById('cv-helmet').textContent=val?'ON':'OFF';
-    document.getElementById('cv-helmet').className='scard-value '+(val?'v-green':'v-red');
-    if(!val) toast('Warning: Helmet not worn! Ignition blocked.','yellow');
-  }
-  if(type==='alcohol'){
-    const card=document.getElementById('card-alcohol');
-    document.getElementById('cv-alcohol').textContent=val?'DETECTED':'CLEAR';
-    document.getElementById('cv-alcohol').className='scard-value '+(val?'v-red':'v-green');
-    card.className='scard '+(val?'c-red':'c-green');
-    if(val) toast('Alert: ALCOHOL DETECTED! Ignition disabled.','red');
-  }
-  if(type==='accident'){
-    const card=document.getElementById('card-accident');
-    document.getElementById('cv-accident').textContent=val?'ACCIDENT!':'SAFE';
-    document.getElementById('cv-accident').className='scard-value '+(val?'v-red':'v-green');
-    card.className='scard '+(val?'c-red':'c-green');
-    if(val) toast('Alert: ACCIDENT DETECTED! SMS sent to emergency contacts.','red');
+  
   }
 }
 
@@ -685,13 +603,6 @@ function syncIgnitionUi(isOn){
 
   const ignitionLabel=document.getElementById('ignition-state');
   if(ignitionLabel) ignitionLabel.textContent=isOn ? 'ON' : 'OFF';
-
-  const systemCard=document.getElementById('system-card-value');
-  const systemState=document.getElementById('system-card-state');
-  const systemCardWrap=document.getElementById('card-system');
-  if(systemCard) systemCard.textContent=isOn ? 'ON' : 'OFF';
-  if(systemState) systemState.textContent=isOn ? 'Engine Active' : 'Engine Off';
-  if(systemCardWrap) systemCardWrap.className='scard '+(isOn ? 'c-cyan' : 'c-yellow');
 }
 
 function syncDeviceSensorUi(type, val){
@@ -761,13 +672,6 @@ function selectContact(contactId){
   activeContactId=contactId;
   document.querySelectorAll('.contact-item').forEach(item=>item.classList.remove('active'));
   const activeRow=document.querySelector(`.contact-item[data-id="${contactId}"]`);
-  if(activeRow) activeRow.classList.add('active');
-  document.getElementById('chat-avatar').textContent=contact.icon;
-  document.getElementById('chat-avatar').style.background=contact.bg;
-  document.getElementById('chat-avatar').style.color=contact.color;
-  document.getElementById('chat-title').textContent=contact.name;
-  document.getElementById('chat-phone').textContent=contact.phone;
-  document.getElementById('chat-call-btn').onclick=()=>{window.location.href='tel:'+contact.phone.replace(/\s+/g,'');};
   renderChatMessages(contact.messages||[]);
 }
 
@@ -852,18 +756,6 @@ function initEmergencyContacts(){
 function initAlertFilters(){
   if(alertFiltersBound) return;
   alertFiltersBound = true;
-  const buttons=[...document.querySelectorAll('.filter-btn')];
-  buttons.forEach(btn=>{
-    btn.addEventListener('click',function(){
-      buttons.forEach(b=>b.classList.remove('active'));
-      this.classList.add('active');
-      const selected=this.textContent.trim().toLowerCase();
-      [...document.querySelectorAll('#alert-center-list .at-row')].forEach(row=>{
-        const typeEl=row.querySelector('.badge');
-        const type=(typeEl?typeEl.textContent:'').trim().toLowerCase();
-        const show=selected==='all' || type.includes(selected);
-        row.style.display=show?'grid':'none';
-      });
     });
   });
 }
