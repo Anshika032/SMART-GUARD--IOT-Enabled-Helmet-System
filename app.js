@@ -1,5 +1,5 @@
 ﻿let currentUser = null;
-const speeds = [10,18,25,32,42,58,72,85,78,65,55,48,42,38,42];
+const speeds = [10,18,25,32,42,58,72,85,78,38,42];
 let miniMap = null;
 let fullMap = null;
 let miniMarker = null;
@@ -7,12 +7,6 @@ let fullMarker = null;
 let mapRoute = null;
 let fullPoiMarkers = [];
 let miniPoiMarkers = [];
-let liveTimer = null;
-let gpsPollTimer = null;
-let backendPollTimer = null;
-let lastBackendSignature = null;
-let lastTelemetryAt = 0;
-let geoWatchId = null;
 let usingExternalGps = false;
 let usingBrowserGps = false;
 let activeContactId = null;
@@ -100,18 +94,6 @@ const defaultEmergencyContacts = [
     ]
   },
   {
-    id:'police-2',
-    icon:'\uD83D\uDE93',
-    color:'var(--cyan)',
-    bg:'rgba(0,212,255,0.12)',
-    name:'Lal Kothi Police Station',
-    phone:'+91 141 261 8570',
-    subtitle:'Nearby police station',
-    messages:[
-      {dir:'out',text:'Rider support requested near Tonk Road corridor.',time:'22:17 - Sent via GSM'}
-    ]
-  },
-  {
     id:'hospital-1',
     icon:'\uD83C\uDFE5',
     color:'var(--green)',
@@ -188,13 +170,6 @@ function getContacts(){
 function saveContacts(contacts){
   writeDb(STORAGE_KEYS.contacts,contacts);
 }
-
-function switchTab(t){
-  document.querySelectorAll('.tab').forEach(el=>el.classList.remove('active'));
-  document.querySelectorAll('.tab')[t==='login'?0:1].classList.add('active');
-  document.getElementById('login-form').style.display=t==='login'?'block':'none';
-  document.getElementById('signup-form').style.display=t==='signup'?'block':'none';
-  document.getElementById('err-msg').style.display='none';
 }
 
 function doLogin(){
@@ -232,12 +207,6 @@ function enterApp(){
   document.getElementById('login-page').style.display='none';
   document.getElementById('app').style.display='block';
   const name=currentUser.name;
-  document.getElementById('sb-uname').textContent=name;
-  document.getElementById('sb-avatar').textContent=name[0].toUpperCase();
-  document.getElementById('sb-urole').textContent=(currentUser.role||'user').toUpperCase();
-  document.getElementById('stat-alerts').textContent='0';
-  document.getElementById('stat-sms').textContent='0';
-  document.getElementById('stat-calls').textContent='0';
   lastBackendSignature=null;
   lastTelemetryAt=Date.now();
   syncIgnitionUi(ignitionOn);
