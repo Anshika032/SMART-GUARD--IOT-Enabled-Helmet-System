@@ -1,4 +1,4 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 import time
 from twilio.rest import Client
@@ -67,10 +67,15 @@ def send_twilio_alert():
     global sms_count, call_count
 
     account_sid = os.getenv("TWILIO_ACCOUNT_SID") 
+    auth_token = os.getenv("TWILIO_AUTH_TOKEN")  
+    from_number = os.getenv("TWILIO_FROM_NUMBER") 
+    to_number = os.getenv("TWILIO_TO_NUMBER")
 
     missing = [
         name
         for name, value in {
+            "TWILIO_ACCOUNT_SID": "XYZ",
+            "TWILIO_AUTH_TOKEN": "XYZ",
             "TWILIO_FROM_NUMBER": "XYZ",
             "TWILIO_TO_NUMBER": "XYZ",
         }.items()
@@ -88,10 +93,28 @@ def send_twilio_alert():
             from_=from_number,
             to=to_number,
         )
+        print("SMS SID:", message.sid)
+        sms_count += 1
+
+        call = client.calls.create(
+    twiml='''
+    <Response>
+        <Say voice="alice">
+            Accident detected. Emergency alert from SafeRide helmet.
+            Please check the rider immediately.
+        </Say>
+    </Response>
+    ''',
     from_=from_number,
     to=to_number,
 )
-     
+        print("CALL SID:", call.sid)
+        call_count += 1
+
+    except Exception as e:
+        print("TWILIO ERROR:", e)
+
+
 @app.route("/status", methods=["GET"])
 def status():
     global device_status, last_seen, accident_status, last_alert_seen, alert_log
@@ -133,7 +156,17 @@ def alert():
     ))
     alert_log = alert_log[:10]
 
-    threading.Thread(target=send_twilio_alert, daemon=True).start(
+    threading.Thread(target=send_twilio_alert, daemon=True).start()
+
+    return jsonify({
+        "alerts": alert_count,
+        "sms": sms_count,
+        "calls": call_count,
+        "recent_alerts": alert_log[:5],
+        "alert_stats": build_alert_stats(alert_log),
+        "message": "Alert accepted"
+    }), 200
+
 
 @app.route("/heartbeat", methods=["POST"])
 def heartbeat():
