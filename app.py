@@ -70,17 +70,8 @@ def send_twilio_alert():
     auth_token = os.getenv("TWILIO_AUTH_TOKEN")  
     from_number = os.getenv("TWILIO_FROM_NUMBER") 
     to_number = os.getenv("TWILIO_TO_NUMBER")
+/Developed by Anshika Shukla
 
-    missing = [
-        name
-        for name, value in {
-            "TWILIO_ACCOUNT_SID": "XYZ",
-            "TWILIO_AUTH_TOKEN": "XYZ",
-            "TWILIO_FROM_NUMBER": "XYZ",
-            "TWILIO_TO_NUMBER": "XYZ",
-        }.items()
-        if not value
-    ]
     if missing:
         print("TWILIO ERROR: Missing env vars:", ", ".join(missing))
         return
@@ -137,7 +128,7 @@ def status():
         "alert_stats": build_alert_stats(alert_log),
     })
 
-
+/Developed by Anshika Shukla
 @app.route("/alert", methods=["POST"])
 def alert():
     global device_status, last_seen, accident_status, last_alert_seen, alert_count, sms_count, call_count, alert_log
@@ -167,7 +158,7 @@ def alert():
         "message": "Alert accepted"
     }), 200
 
-
+/Developed by Anshika Shukla
 @app.route("/heartbeat", methods=["POST"])
 def heartbeat():
     global device_status, last_seen
