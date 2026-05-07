@@ -2,6 +2,8 @@
 Smart Guard is an IoT-based smart helmet safety system designed to enhance rider protection through real-time monitoring and accident detection. It integrates sensors like MPU6050, MQ3, IR, GPS, and GSM/API-based alerting to detect crashes, alcohol consumption, helmet usage, and location tracking, sending emergency notifications instantly.
 ## Hardware & Software Stack
 
+**Due to the ongoing design patent of this project, I am unable to share the exact code for confidentiality reasons.**
+
 ### Hardware
 
 * Arduino Uno / Nano (Microcontroller)
@@ -18,4 +20,4 @@ Smart Guard is an IoT-based smart helmet safety system designed to enhance rider
 * Python Flask (Backend API)
 * JavaScript / HTML / CSS (Dashboard frontend)
 
-Due to ongoing design patent work, I am unable to share the exact code for confidentiality reasons.
+
