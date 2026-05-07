@@ -1,8 +1,5 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-import time
-from twilio.rest import Client
-import os
 import threading
 
 app = Flask(__name__)
@@ -50,26 +47,6 @@ def build_alert_stats(events):
                 elif kind == "ACCIDENT":
                     helmet_on += 1
 
-        total = len(events)
-        worn_pct = int(round((helmet_on / total) * 100)) if total else 0
-        off_pct = max(0, 100 - worn_pct)
-        return {
-                "type_counts": type_counts,
-                "severity_counts": severity_counts,
-                "helmet_usage": {
-                        "worn": worn_pct,
-                        "off": off_pct,
-                },
-        }
-
-
-def send_twilio_alert():
-    global sms_count, call_count
-
-    account_sid = os.getenv("TWILIO_ACCOUNT_SID") 
-    auth_token = os.getenv("TWILIO_AUTH_TOKEN")  
-    from_number = os.getenv("TWILIO_FROM_NUMBER") 
-    to_number = os.getenv("TWILIO_TO_NUMBER")
 /Developed by Anshika Shukla
 
     if missing:
@@ -118,14 +95,6 @@ def status():
     if last_alert_seen and time.time() - last_alert_seen > 15:
         accident_status = "SAFE"
 
-    return jsonify({
-        "status": device_status,
-        "accident": accident_status,
-        "alerts": alert_count,
-        "sms": sms_count,
-        "calls": call_count,
-        "recent_alerts": alert_log[:5],
-        "alert_stats": build_alert_stats(alert_log),
     })
 
 /Developed by Anshika Shukla
@@ -146,17 +115,6 @@ def alert():
         "ACTIVE"
     ))
     alert_log = alert_log[:10]
-
-    threading.Thread(target=send_twilio_alert, daemon=True).start()
-
-    return jsonify({
-        "alerts": alert_count,
-        "sms": sms_count,
-        "calls": call_count,
-        "recent_alerts": alert_log[:5],
-        "alert_stats": build_alert_stats(alert_log),
-        "message": "Alert accepted"
-    }), 200
 
 /Developed by Anshika Shukla
 @app.route("/heartbeat", methods=["POST"])
